@@ -1,4 +1,7 @@
 source 'https://rubygems.org'
 
 gem 'pivotal-tracker'
-# gem 'daemons'
+gem 'sqlite3'
+gem 'ruby-progressbar'
+gem 'pry'
+gem 'pry-debugger'

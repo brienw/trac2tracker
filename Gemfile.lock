@@ -2,10 +2,19 @@ GEM
   remote: https://rubygems.org/
   specs:
     builder (3.2.0)
+    coderay (1.0.9)
+    columnize (0.3.6)
     crack (0.3.2)
+    debugger (1.5.0)
+      columnize (>= 0.3.1)
+      debugger-linecache (~> 1.2.0)
+      debugger-ruby_core_source (~> 1.2.0)
+    debugger-linecache (1.2.0)
+    debugger-ruby_core_source (1.2.0)
     happymapper (0.4.0)
       libxml-ruby (~> 2.0)
     libxml-ruby (2.6.0)
+    method_source (0.8.1)
     mime-types (1.22)
     nokogiri (1.5.9)
     nokogiri-happymapper (0.5.7)
@@ -18,11 +27,25 @@ GEM
       nokogiri (>= 1.5.5)
       nokogiri-happymapper (>= 0.5.4)
       rest-client (~> 1.6.0)
+    pry (0.9.12.1)
+      coderay (~> 1.0.5)
+      method_source (~> 0.8)
+      slop (~> 3.4)
+    pry-debugger (0.2.2)
+      debugger (~> 1.3)
+      pry (~> 0.9.10)
     rest-client (1.6.7)
       mime-types (>= 1.16)
+    ruby-progressbar (1.0.2)
+    slop (3.4.4)
+    sqlite3 (1.3.7)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
   pivotal-tracker
+  pry
+  pry-debugger
+  ruby-progressbar
+  sqlite3
