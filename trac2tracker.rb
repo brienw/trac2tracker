@@ -12,14 +12,15 @@ default_user = 'ezhou'
 # pt_project_id = '784261' # CPF spt
 pt_project_id = '820749' # CPF Test
 #pt_project_id = '820865' # matt's CPF Test
+pt_email = 'brien@reebosak.net'
 
 unless ENV['PIVOTAL_TOKEN']
   unless pt_email
-    print "Pivotal token: "
+    print "Pivotal email: "
     pt_email = gets.chomp
   end
 
-  print "Pivotal Password: "
+  print 'Pivotal Password: '
   pt_password = STDIN.noecho(&:gets).chomp
   puts
 
@@ -70,10 +71,10 @@ db.execute2('select * from ticket order by id desc') do |row_array|
   end
 
   if row[:severity].nil?
-    row[:severity] = "1"
+    row[:severity] = '1'
   end
   if row[:status].nil?
-    row[:status] = "unscheduled"
+    row[:status] = 'unscheduled'
   end
   if row[:owner].nil?
     row[:owner] = default_user
