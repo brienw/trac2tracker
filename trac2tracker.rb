@@ -11,7 +11,7 @@ default_user = "ezhou"
 
 pt_email = 'brien@reebosak.net'
 # pt_project_id = '784261' # CPF spt
-pt_project_id = '820749' # CPF Test
+pt_project_id = '821611' # CPF Test
 
 unless pt_email
   print "Pivotal Email: "
@@ -46,9 +46,10 @@ ticket_count = db.get_first_value("select count(*) from ticket")
 memberships = (project.memberships.all).collect(&:name).map(&:downcase)
 # TODO: verify memberships
 
-
 story = nil
 errors = 0
+error_ids = []
+comment_failures = []
 ticket_progress = ProgressBar.create(:title => "Tickets: ",
     :format => "%t %c/%C (%p%) |%b>>%i|", :total => ticket_count.to_i)
 
@@ -127,6 +128,8 @@ db.execute2( "select * from ticket order by id desc" ) do |row_array|
   # bugs and releases can't have estimate
   estimate = nil if ['bug', 'release', 'chore'].include? story_type
 
+  # update progress bar with new ticket id
+  ticket_progress.title = "Ticket #{id}"
   begin
     story = project.stories.create(
         name: story,
@@ -140,23 +143,30 @@ db.execute2( "select * from ticket order by id desc" ) do |row_array|
         # owner: owner,
         description: description.chomp + "\n[trac#{id}] Imported from trac, original id #{id}"
     )
-  rescue
-    puts $!.backtrace
-    puts "Ticket: #{id}"
-    binding.pry
-  end
-  # # migrate comments
-  # db.execute(query = 'select newvalue from ticket_change where field=="comment" and newvalue != \'\' and ticket=' + id.to_s + ' and newvalue !=' + id.to_s) do |comment|
-  #   story.notes.create(:text => comment[0]) unless comment[0].empty?
-  # end
+
   if story.errors.count > 0
     puts "Failed on ticket #{id}"
     puts story.errors
-    binding.pry
     errors = errors + 1
+    error_ids << id
   else
-    ticket_progress.title = "Ticket #{id}"
+    # migrate comments
+    begin
+      db.execute(query = 'select newvalue from ticket_change where field=="comment" and newvalue != \'\' and ticket=' + id.to_s + ' and newvalue !=' + id.to_s) do |comment|
+        story.notes.create(:text => comment[0]) unless comment[0].empty?
+      end
+    rescue
+      puts "failed adding comments to ticket #{id}"
+      comment_failures << id
+    end
     ticket_progress.increment
   end
+  rescue
+#    puts $!.backtrace
+    puts "Failed on ticket: #{id}"
+  end
+
 end
-puts "Errors: #{errors}"
+puts "\nErrors: #{errors}" if errors > 0
+puts "Ticket IDs: " + error_ids.join(',') if error_ids.length > 0
+puts "failed adding comments to: " + comment_failures.join(',') if comment_failures.length > 0
