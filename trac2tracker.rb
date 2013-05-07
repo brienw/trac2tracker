@@ -13,7 +13,26 @@ default_user = 'ezhou'
 pt_project_id = '820749' # CPF Test
 #pt_project_id = '820865' # matt's CPF Test
 
-PivotalTracker::Client.token('af71b91e9102585283e85b0a790d0971')
+unless ENV['PIVOTAL_TOKEN']
+  unless pt_email
+    print "Pivotal token: "
+    pt_email = gets.chomp
+  end
+
+  print "Pivotal Password: "
+  pt_password = STDIN.noecho(&:gets).chomp
+  puts
+
+  unless pt_project_id
+    puts "\nPivotal Project ID: "
+    pt_project_id = gets.chomp
+  end
+
+  PivotalTracker::Client.token(pt_email, pt_password)
+  puts "Authenticated as #{pt_email}"
+else
+  PivotalTracker::Client.token = ENV['PIVOTAL_TOKEN']
+end
 
 project = PivotalTracker::Project.find(pt_project_id)
 if project
@@ -22,7 +41,7 @@ else
   puts 'You do not appear to have permission to manage this project'
 end
 
-db = SQLite3::Database.new( trac_db )
+db = SQLite3::Database.new(trac_db)
 puts 'Trac db loaded'
 
 ticket_count = db.get_first_value('select count(*) from ticket')
@@ -35,7 +54,7 @@ memberships = (project.memberships.all).collect(&:name).map(&:downcase)
 story = nil
 errors = 0
 ticket_progress = ProgressBar.create(:title => 'Tickets: ',
-    :format => '%t %c/%C (%p%) |%b>>%i|', :total => ticket_count.to_i)
+                                     :format => '%t %c/%C (%p%) |%b>>%i|', :total => ticket_count.to_i)
 
 columns = nil
 
@@ -46,7 +65,7 @@ db.execute2('select * from ticket order by id desc') do |row_array|
     next
   end
   row = {}
-  columns.each_with_index do |name,index|
+  columns.each_with_index do |name, index|
     row[name.to_sym] = row_array[index]
   end
 
@@ -61,31 +80,31 @@ db.execute2('select * from ticket order by id desc') do |row_array|
   end
 
   # translate statuses
-  if ( row[:status] == 'closed' && (['fixed', 'duplicate', 'wontfix', 'invalid', 'worksforme'].include? row[:resolution].chomp ))
-    row[:status] = 'accepted' 
-  elsif ( row[:status] == 'closed' && (['readytotest', 'reviewfix'].include? row[:resolution] ) )
+  if (row[:status] == 'closed' && (['fixed', 'duplicate', 'wontfix', 'invalid', 'worksforme'].include? row[:resolution].chomp))
+    row[:status] = 'accepted'
+  elsif (row[:status] == 'closed' && (['readytotest', 'reviewfix'].include? row[:resolution]))
     row[:status] = 'delivered'
   elsif row[:status] == 'assigned'
     row[:status] = 'unstarted'
   elsif row[:status] == 'new'
-    row[:status] = 'unscheduled' 
+    row[:status] = 'unscheduled'
   elsif row[:status] == 'reopened'
     row[:status] = 'rejected'
   end
 
   #translate types
   row[:type] = case row[:type]
-  when 'defect'
-    'bug'
-  when 'enhancement'
-    'feature'
-  when 'roadmap'
-    'release'
-  when 'spec needed','task'
-    'chore'
-  else
-    row[:type]
-  end
+                 when 'defect'
+                   'bug'
+                 when 'enhancement'
+                   'feature'
+                 when 'roadmap'
+                   'release'
+                 when 'spec needed', 'task'
+                   'chore'
+                 else
+                   row[:type]
+               end
 
   if row[:type] == 'release' && row[:status] == 'delivered'
     row[:status] = 'accepted'
