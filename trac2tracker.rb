@@ -16,7 +16,7 @@ pt_email = 'brien@reebosak.net'
 
 unless ENV['PIVOTAL_TOKEN']
   unless pt_email
-    print "Pivotal email: "
+    print 'Pivotal email: '
     pt_email = gets.chomp
   end
 
@@ -70,9 +70,6 @@ db.execute2('select * from ticket order by id desc') do |row_array|
     row[name.to_sym] = row_array[index]
   end
 
-  if row[:severity].nil?
-    row[:severity] = '1'
-  end
   if row[:status].nil?
     row[:status] = 'unscheduled'
   end
@@ -81,9 +78,9 @@ db.execute2('select * from ticket order by id desc') do |row_array|
   end
 
   # translate statuses
-  if (row[:status] == 'closed' && (['fixed', 'duplicate', 'wontfix', 'invalid', 'worksforme'].include? row[:resolution].chomp))
+  if row[:status] == 'closed' && %w(fixed duplicate wontfix invalid worksforme).include?(row[:resolution].chomp)
     row[:status] = 'accepted'
-  elsif (row[:status] == 'closed' && (['readytotest', 'reviewfix'].include? row[:resolution]))
+  elsif row[:status] == 'closed' && %w(readytotest reviewfix).include?(row[:resolution].chomp)
     row[:status] = 'delivered'
   elsif row[:status] == 'assigned'
     row[:status] = 'unstarted'
@@ -130,7 +127,7 @@ db.execute2('select * from ticket order by id desc') do |row_array|
   end
   accepted_at = Time.at(row[:changetime]) if row[:status] == 'accepted'
   # bugs and releases can't have estimate
-  estimate = nil if ['bug', 'release', 'chore'].include? story_type
+  estimate = nil if %w(bug release chore).include? story_type
 
   begin
     story = project.stories.create(
