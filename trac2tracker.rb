@@ -6,41 +6,26 @@ require 'ruby-progressbar'
 require 'sqlite3'
 require 'pivotal-tracker'
 
-trac_db = "trac.db"
-default_user = "ezhou"
+trac_db = 'trac.db'
+default_user = 'ezhou'
 
-pt_email = 'brien@reebosak.net'
 # pt_project_id = '784261' # CPF spt
 pt_project_id = '820749' # CPF Test
+#pt_project_id = '820865' # matt's CPF Test
 
-unless pt_email
-  print "Pivotal Email: "
-  pt_email = gets.chomp
-end
-
-print "Pivotal Password: "
-pt_password = STDIN.noecho(&:gets).chomp
-puts
-
-unless pt_project_id
-  puts "\nPivotal Project ID: "
-  pt_project_id = gets.chomp
-end
-
-PivotalTracker::Client.token(pt_email, pt_password)
-puts "Authenticated as #{pt_email}"
+PivotalTracker::Client.token('af71b91e9102585283e85b0a790d0971')
 
 project = PivotalTracker::Project.find(pt_project_id)
 if project
   puts "Found project '#{project.name}'"
 else
-  puts "You do not appear to have permission to manage this project"
+  puts 'You do not appear to have permission to manage this project'
 end
 
 db = SQLite3::Database.new( trac_db )
-puts "Trac db loaded"
+puts 'Trac db loaded'
 
-ticket_count = db.get_first_value("select count(*) from ticket")
+ticket_count = db.get_first_value('select count(*) from ticket')
 
 
 memberships = (project.memberships.all).collect(&:name).map(&:downcase)
@@ -49,12 +34,12 @@ memberships = (project.memberships.all).collect(&:name).map(&:downcase)
 
 story = nil
 errors = 0
-ticket_progress = ProgressBar.create(:title => "Tickets: ",
-    :format => "%t %c/%C (%p%) |%b>>%i|", :total => ticket_count.to_i)
+ticket_progress = ProgressBar.create(:title => 'Tickets: ',
+    :format => '%t %c/%C (%p%) |%b>>%i|', :total => ticket_count.to_i)
 
 columns = nil
 
-db.execute2( "select * from ticket order by id desc" ) do |row_array|
+db.execute2('select * from ticket order by id desc') do |row_array|
 
   if columns.nil?
     columns = row_array
