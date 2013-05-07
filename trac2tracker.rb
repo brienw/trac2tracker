@@ -47,8 +47,8 @@ story = nil
 errors = 0
 error_ids = []
 comment_failures = []
-ticket_progress = ProgressBar.create(:title => "Tickets: ",
-    :format => "%t %c/%C (%p%) |%b>>%i|", :total => ticket_count.to_i)
+ticket_progress = ProgressBar.create(:title => 'Tickets: ',
+    :format => '%t %c/%C (%p%) |%b>>%i|', :total => ticket_count.to_i)
 
 columns = nil
 
