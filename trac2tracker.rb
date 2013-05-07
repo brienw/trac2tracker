@@ -63,12 +63,8 @@ db.execute2('select * from ticket order by id desc') do |row_array|
     row[name.to_sym] = row_array[index]
   end
 
-  if row[:status].nil?
-    row[:status] = 'unscheduled'
-  end
-  if row[:owner].nil?
-    row[:owner] = default_user
-  end
+  row[:status] ||= 'unscheduled'
+  row[:owner] ||= default_user
 
   # translate statuses
   if row[:status] == 'closed' && %w(fixed duplicate wontfix invalid worksforme).include?(row[:resolution].chomp)
@@ -85,16 +81,11 @@ db.execute2('select * from ticket order by id desc') do |row_array|
 
   #translate types
   row[:type] = case row[:type]
-                 when 'defect'
-                   'bug'
-                 when 'enhancement'
-                   'feature'
-                 when 'roadmap'
-                   'release'
-                 when 'spec needed', 'task'
-                   'chore'
-                 else
-                   row[:type]
+                 when 'defect'; 'bug'
+                 when 'enhancement'; 'feature'
+                 when 'roadmap'; 'release'
+                 when 'spec needed', 'task'; 'chore'
+                 else row[:type]
                end
 
   if row[:type] == 'release' && row[:status] == 'delivered'
@@ -108,7 +99,7 @@ db.execute2('select * from ticket order by id desc') do |row_array|
   story = row[:summary]
   labels = row[:milestone]
   story_type = row[:type]
-  estimate = '1'
+  estimate = '1' #Why are we defaulting to the string '1', should it be nil or numeric?  Maybe only set it if the task is assigned?
   current_state = row[:status]
   requested_by = row[:reporter]
   owner = row[:owner]
