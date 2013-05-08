@@ -34,23 +34,28 @@ else
   puts 'You do not appear to have permission to manage this project'
 end
 
-db = SQLite3::Database.new(trac_db)
-puts 'Trac db loaded'
-
-ticket_count = db.get_first_value('select count(*) from ticket')
 
 
+usernames = []
 memberships = (project.memberships.all).collect(&:name).map(&:downcase)
 # TODO: verify memberships
+memberships.each do |member|
+  (first, last) = member.split
+  usernames << first[0].downcase + last.downcase
+end
 
 story = nil
 errors = 0
 error_ids = []
 comment_failures = []
+columns = nil
+
+db = SQLite3::Database.new(trac_db)
+puts 'Trac db loaded'
+
+ticket_count = db.get_first_value('select count(*) from ticket')
 ticket_progress = ProgressBar.create(:title => 'Tickets: ',
     :format => '%t %c/%C (%p%) |%b>>%i|', :total => ticket_count.to_i)
-
-columns = nil
 
 db.execute2('select * from ticket order by id desc') do |row_array|
 
@@ -109,13 +114,28 @@ db.execute2('select * from ticket order by id desc') do |row_array|
     # project.memberships.create(name: requested_by)
     memberships << requested_by.downcase
   end
+
   accepted_at = Time.at(row[:changetime]) if row[:status] == 'accepted'
   # bugs and releases can't have estimate
   estimate = nil if %w(bug release chore).include? story_type
 
   # update progress bar with new ticket id
   ticket_progress.title = "Ticket #{id}"
+
+  # migrate comments
+  # Pivotal API does not allow setting author when creating a note, so 
+  # we place the imported comment history into the description
   begin
+    db.execute(query = 'select author, newvalue from ticket_change where field=="comment" and newvalue != \'\' and ticket=' + id.to_s + ' and newvalue !=' + id.to_s) do |comment|
+      description = description + "\n\ncomment from #{comment[0]}:\n#{comment[1]}" unless comment[1].empty?
+    end
+  rescue
+    puts "failed adding comments to ticket #{id}"
+    comment_failures << id
+  end
+  begin
+
+
     story = project.stories.create(
         name: story,
         labels: labels,
@@ -135,15 +155,6 @@ db.execute2('select * from ticket order by id desc') do |row_array|
     errors = errors + 1
     error_ids << id
   else
-    # migrate comments
-    begin
-      db.execute(query = 'select newvalue from ticket_change where field=="comment" and newvalue != \'\' and ticket=' + id.to_s + ' and newvalue !=' + id.to_s) do |comment|
-        story.notes.create(:text => comment[0]) unless comment[0].empty?
-      end
-    rescue
-      puts "failed adding comments to ticket #{id}"
-      comment_failures << id
-    end
     ticket_progress.increment
   end
   rescue
