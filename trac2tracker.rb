@@ -7,7 +7,7 @@ require 'sqlite3'
 require 'pivotal-tracker'
 
 trac_db = 'trac.db'
-default_user = 'ezhou'
+default_user = 'Elaine Zhou'
 
 pt_project_id = ENV['PIVOTAL_PROJECT_ID'] ? ENV['PIVOTAL_PROJECT_ID'] : '821611'
 
@@ -35,13 +35,11 @@ else
 end
 
 
-
-usernames = []
-memberships = (project.memberships.all).collect(&:name).map(&:downcase)
-# TODO: verify memberships
-memberships.each do |member|
-  (first, last) = member.split
-  usernames << first[0].downcase + last.downcase
+# create a simple dictionary to match trac usernames to pivotal membership names
+membership_mapping = {}
+project.memberships.all.each do |member|
+  username = member.email.split('@').first
+  membership_mapping[username] = member.name
 end
 
 story = nil
@@ -53,11 +51,11 @@ columns = nil
 db = SQLite3::Database.new(trac_db)
 puts 'Trac db loaded'
 
-ticket_count = db.get_first_value('select count(*) from ticket')
+ticket_count = db.get_first_value('select count(*) from ticket where id < 4650')
 ticket_progress = ProgressBar.create(:title => 'Tickets: ',
     :format => '%t %c/%C (%p%) |%b>>%i|', :total => ticket_count.to_i)
 
-db.execute2('select * from ticket order by id desc') do |row_array|
+db.execute2('select * from ticket where id < 4650 order by id desc') do |row_array|
 
   if columns.nil?
     columns = row_array
@@ -67,9 +65,6 @@ db.execute2('select * from ticket order by id desc') do |row_array|
   columns.each_with_index do |name, index|
     row[name.to_sym] = row_array[index]
   end
-
-  row[:status] ||= 'unscheduled'
-  row[:owner] ||= default_user
 
   # translate statuses
   if row[:status] == 'closed' && %w(fixed duplicate wontfix invalid worksforme).include?(row[:resolution].chomp)
@@ -88,7 +83,7 @@ db.execute2('select * from ticket order by id desc') do |row_array|
   row[:type] = case row[:type]
                  when 'defect'; 'bug'
                  when 'enhancement'; 'feature'
-                 when 'roadmap'; 'release'
+                 when 'roadmap'; 'feature'
                  when 'spec needed', 'task'; 'chore'
                  else row[:type]
                end
@@ -100,20 +95,22 @@ db.execute2('select * from ticket order by id desc') do |row_array|
     row[:status] = 'accepted'
   end
 
+  row[:status] ||= 'unscheduled'
+
   id = row[:id]
   story = row[:summary]
   labels = row[:milestone]
   story_type = row[:type]
   estimate = '1' #Why are we defaulting to the string '1', should it be nil or numeric?  Maybe only set it if the task is assigned?
   current_state = row[:status]
-  requested_by = row[:reporter]
-  owner = row[:owner]
-  description = row[:description]
+  requested_by = membership_mapping[row[:reporter]] || default_user
+  owner = membership_mapping[row[:owner]] || nil
 
-  unless memberships.include? requested_by.downcase
-    # project.memberships.create(name: requested_by)
-    memberships << requested_by.downcase
+  # only keep owner for open/assigned stories
+  if !['unstarted','rejected'].include? current_state
+    owner = nil
   end
+  description = row[:description]
 
   accepted_at = Time.at(row[:changetime]) if row[:status] == 'accepted'
   # bugs and releases can't have estimate
@@ -144,8 +141,8 @@ db.execute2('select * from ticket order by id desc') do |row_array|
         current_state: current_state,
         created_at: Time.at(row[:time]),
         accepted_at: accepted_at,
-        # requested_by: requested_by,
-        # owner: owner,
+        requested_by: requested_by,
+        owned_by: owner,
         description: description.chomp + "\n[trac#{id}] Imported from trac, original id #{id}"
     )
 
