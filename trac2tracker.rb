@@ -51,11 +51,11 @@ columns = nil
 db = SQLite3::Database.new(trac_db)
 puts 'Trac db loaded'
 
-ticket_count = db.get_first_value('select count(*) from ticket where id < 4650')
+ticket_count = db.get_first_value('select count(*) from ticket where status !=\'closed\'')
 ticket_progress = ProgressBar.create(:title => 'Tickets: ',
     :format => '%t %c/%C (%p%) |%b>>%i|', :total => ticket_count.to_i)
 
-db.execute2('select * from ticket where id < 4650 order by id desc') do |row_array|
+db.execute2('select * from ticket where status !=\'closed\' order by id desc') do |row_array|
 
   if columns.nil?
     columns = row_array
@@ -99,7 +99,18 @@ db.execute2('select * from ticket where id < 4650 order by id desc') do |row_arr
 
   id = row[:id]
   story = row[:summary]
-  labels = row[:milestone]
+
+  lables = nil
+  milestone = row[:milestone].chomp if row[:milestone] && !row[:milestone].chomp.empty?
+  component = row[:component].chomp if row[:component] && !row[:component].chomp.empty?
+  if milestone && component
+    labels = "#{milestone},#{component}"
+  elsif milestone
+    lables = milestone
+  elsif component
+    labels = component
+  end
+
   story_type = row[:type]
   estimate = '1' #Why are we defaulting to the string '1', should it be nil or numeric?  Maybe only set it if the task is assigned?
   current_state = row[:status]
@@ -149,6 +160,7 @@ db.execute2('select * from ticket where id < 4650 order by id desc') do |row_arr
   if story.errors.count > 0
     puts "Failed on ticket #{id}"
     puts story.errors
+    binding.pry
     errors = errors + 1
     error_ids << id
   else
